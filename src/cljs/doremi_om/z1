@@ -1,0 +1,4 @@
+    om/IInitState
+    (init-state [_]
+      (om/transact! app [:comments] (fn[] 
+                                      [])))
