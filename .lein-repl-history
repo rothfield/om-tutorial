@@ -16,3 +16,4 @@ point
 (let [{:keys [x y z] :as z} point] (println x y z))
 (let [{:keys [x y] :as z} point] (println x y z))
 (let [{:keys [x y] :as z} point] (println "x" x "y" y "z" z))
+quit

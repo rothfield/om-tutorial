@@ -17,6 +17,23 @@
 (.log js/console
       (md/mdToHtml "##This is a heading\nwith a paragraph following it")) 
 
+(defn- with-id
+  [m]
+  (assoc m :id (guid)))
+
+
+
+(defn- fetch-comments
+  [url]
+  (let [c (chan)  ;; create local channel c
+        
+        ]
+
+    (go (let 
+          [{{comments :comments} :body} (<! (http/get url))]
+        (>! c (vec (map with-id comments)))))
+   c)) 
+
 (defn comment[{:keys [author text] :as c} owner opts]
   (om/component 
     (let [raw-markup (md/mdToHtml text)]
@@ -35,8 +52,13 @@
                          (om/build-all comment comments
                                        {:key :id}))))
 
-(defn comment-box[app]
+(defn comment-box[app owner opts]
   (reify
+    om/IWillMount
+    (will-mount [_]
+      (go (let [comments (<! (fetch-comments (:url opts)))]
+            (om/update! app #(assoc % :comments comments))))
+      )
     om/IInitState
     (init-state [_]
       (om/transact! app [:comments] (fn[] 
@@ -53,7 +75,7 @@
     om/IRender
     (render [_]
       (dom/div nil
-               (om/build comment-box app)))))
+               (om/build comment-box app {:opts {:url "/comments"}})))))
 
 (om/root app-state 
          doremi-om-app 

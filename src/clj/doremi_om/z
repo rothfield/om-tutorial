@@ -1,0 +1,14 @@
+(defn- with-id
+  [m]
+  (assoc m :id (guid)))
+
+
+
+(defn- fetch-comments
+  [url]
+  (let [c (chan)]
+    (go (let 
+          [{{comments :comments} :body} (<! (http/get url))]
+        (>! c (vec (map with-id comments)))))
+   c)) 
+

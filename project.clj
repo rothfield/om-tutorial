@@ -5,6 +5,7 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/tools.reader "0.8.2"]
                  ;; CLJ
+                 [ring-json-response "0.2.0"]
                  [ring/ring-core "1.2.0"]
                  [compojure "1.1.6"]
                  [cheshire "5.2.0"]
