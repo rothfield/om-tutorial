@@ -16,4 +16,6 @@ goog.addDependency("../cljs_http/core.js", ['cljs_http.core'], ['cljs.core', 'cl
 goog.addDependency("../om/dom.js", ['om.dom'], ['cljs.core']);
 goog.addDependency("../om/core.js", ['om.core'], ['cljs.core', 'om.dom']);
 goog.addDependency("../cljs_http/client.js", ['cljs_http.client'], ['cljs.core', 'no.en.core', 'cljs_http.core', 'cljs_http.util', 'clojure.string', 'cljs.reader', 'cljs.core.async', 'goog.Uri']);
-goog.addDependency("../doremi_om/core.js", ['doremi_om.core'], ['doremi_om.utils', 'cljs.core', 'cljs_http.client', 'om.core', 'om.dom', 'cljs.core.async', 'goog.events']);
+goog.addDependency("../markdown/transformers.js", ['markdown.transformers'], ['cljs.core', 'clojure.string']);
+goog.addDependency("../markdown/core.js", ['markdown.core'], ['cljs.core', 'markdown.transformers']);
+goog.addDependency("../doremi_om/core.js", ['doremi_om.core'], ['doremi_om.utils', 'cljs.core', 'cljs_http.client', 'om.core', 'markdown.core', 'om.dom', 'cljs.core.async', 'goog.events']);

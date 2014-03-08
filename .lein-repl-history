@@ -1,0 +1,18 @@
+(def data {:comments [{:author "Pete Hunt" :text "This is one comment"}
+                    {:author "Jordan Walke" :text "This is *another* comment"} :foo "bar"]}
+)
+data
+(defn t[{} :as a] (println a))
+(defn t[{} as a] (println a))
+(t data)
+data
+(def point {:x 5 :y 7})
+(let [{} point] (println))
+(let [{:keys [x y} point] (println x y))
+(let [{:keys [x y]} point] (println x y))
+pint
+point
+(let [{:keys [x y z]} point] (println x y z))
+(let [{:keys [x y z] :as z} point] (println x y z))
+(let [{:keys [x y] :as z} point] (println x y z))
+(let [{:keys [x y] :as z} point] (println "x" x "y" y "z" z))
