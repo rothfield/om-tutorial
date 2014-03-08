@@ -18,4 +18,4 @@ goog.addDependency("../om/core.js", ['om.core'], ['cljs.core', 'om.dom']);
 goog.addDependency("../cljs_http/client.js", ['cljs_http.client'], ['cljs.core', 'no.en.core', 'cljs_http.core', 'cljs_http.util', 'clojure.string', 'cljs.reader', 'cljs.core.async', 'goog.Uri']);
 goog.addDependency("../markdown/transformers.js", ['markdown.transformers'], ['cljs.core', 'clojure.string']);
 goog.addDependency("../markdown/core.js", ['markdown.core'], ['cljs.core', 'markdown.transformers']);
-goog.addDependency("../doremi_om/core.js", ['doremi_om.core'], ['doremi_om.utils', 'cljs.core', 'cljs_http.client', 'om.core', 'markdown.core', 'om.dom', 'cljs.core.async', 'goog.events']);
+goog.addDependency("../doremi_om/core.js", ['doremi_om.core'], ['doremi_om.utils', 'cljs.core', 'cljs_http.client', 'om.core', 'markdown.core', 'om.dom', 'cljs.core.async.impl.protocols', 'cljs.core.async', 'goog.events']);

@@ -2,20 +2,24 @@
   (:require-macros [cljs.core.async.macros :refer [go alt!]])
   (:require [goog.events :as events]
             [cljs.core.async :refer [put! <! >! chan timeout]]
+            [cljs.core.async.impl.protocols]
             [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
             [markdown.core :as md] 
-            [cljs-http.client :as http]
+            [cljs-http.client]
             [doremi-om.utils :refer [guid]]))
 
 ;; Lets you do (prn "stuff") to the console
 (enable-console-print!)
 
+(defn log[& more]
+  (.log js/console (pr-str more))
+  )
+
+(log "hi" "john")
 (def app-state
   (atom {}))
 
-(.log js/console
-      (md/mdToHtml "##This is a heading\nwith a paragraph following it")) 
 
 (defn- with-id
   [m]
@@ -25,14 +29,23 @@
 
 (defn- fetch-comments
   [url]
-  (let [c (chan)  ;; create local channel c
-        
+  (assert (string? url))
+  (let [c (chan)  ;; create channel c
         ]
-
+    ;; 
     (go (let 
-          [{{comments :comments} :body} (<! (http/get url))]
-        (>! c (vec (map with-id comments)))))
-   c)) 
+          [{{comments :comments} :body} ;; Put results of read from the ajax result here.
+           ;; Destructure results. Something like (get-in x [:body :comments]). Results will be a map.
+           (<! (cljs-http.client/get url))    ;; Do an ajax get request to url
+           ;; http/get returns a channel
+           ;; <! is an asynchronous take
+           ;;  <!  reads/gets from the channel
+           ;;  
+           ]
+          (>! c (vec (map with-id comments)))))   ;; put comments in the channel after adding ids and turning into a vector
+    (assert (satisfies? cljs.core.async.impl.protocols/Channel c))
+    c    ;; return channel
+    )) 
 
 (defn comment[{:keys [author text] :as c} owner opts]
   (om/component 
@@ -56,9 +69,17 @@
   (reify
     om/IWillMount
     (will-mount [_]
-      (go (let [comments (<! (fetch-comments (:url opts)))]
-            (om/update! app #(assoc % :comments comments))))
-      )
+      (go 
+        (while true
+          (let [comments (<! (fetch-comments (:url opts)))]
+            (om/update! app #(assoc % :comments comments)))
+          ;; Now read from a timeout channel. This pauses 2 seconds
+          ;; if poll-interval is 2000
+
+          (<! (timeout (:poll-interval opts))))))
+
+
+
     om/IInitState
     (init-state [_]
       (om/transact! app [:comments] (fn[] 
@@ -75,7 +96,9 @@
     om/IRender
     (render [_]
       (dom/div nil
-               (om/build comment-box app {:opts {:url "/comments"}})))))
+               (om/build comment-box app {:opts {:url "/comments"
+                                                 :poll-interval 2000 
+                                                 }})))))
 
 (om/root app-state 
          doremi-om-app 
