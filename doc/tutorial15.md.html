@@ -1,0 +1,196 @@
+<h1><a href="http://facebook.github.io/react/docs/tutorial.html#adding-new-comments">Adding new comments</a> (tutorial 15-19)</h1>
+
+<p>Now that we can read comments from the server, it would be great if we
+could write them to it as well. Let's start by building out the
+<code>comment-form</code> to look more like an actual form.</p>
+
+<p><code>clojure
+(defn comment-form [app]
+  (om/component
+   (dom/form
+    #js {:className "commentForm"}
+    (dom/input #js {:type "text" :placeholder "Your Name"})
+    (dom/input #js {:type "text" :placeholder "Say something..."})
+    (dom/input #js {:type "submit" :value "Post"}))))
+</code></p>
+
+<p>Now that we have a more form-y looking form, we need to add a handler
+for the <code>onSubmit</code> event. When triggered, our handler should:</p>
+
+<ol>
+<li>Clear the form,</li>
+<li>Submit a request to the server, and</li>
+<li>Refresh the list of comments.</li>
+</ol>
+
+<p>You'll notice now that if you click the "Post" button, the page will
+refresh -- not good. Let's wire up a handler that will not only clear
+the form on submit, but fix that issue in the process.</p>
+
+<p>In order to access the values in the inputs, we'll need to assign
+<code>ref</code> attributes to them and have access to the underlying
+component. This means that we'll need to use the expanded component
+definition.</p>
+
+<p><code>clojure
+(defn comment-form [app owner opts]
+  (reify
+    om/IRender
+    (render [_]
+      (dom/form
+       #js {:className "commentForm" :onSubmit #(handle-submit % owner opts)}
+       (dom/input #js {:type "text" :placeholder "Your Name" :ref "author"})
+       (dom/input #js {:type "text" :placeholder "Say something..." :ref "text"})
+       (dom/input #js {:type "submit" :value "Post"})))))
+</code></p>
+
+<p>I've defined the <code>onSubmit</code> handler as an anonymous function that
+takes the event as its first argument, the component itself (exposed
+as <code>owner</code>), and the <code>opts</code> map. We pass the <code>opts</code> map because we
+need the url of the endpoint we're posting to. There are also <code>ref</code>
+attributes on the two inputs now to provide access to the value in the
+input node. Remember to update the <code>comment-box</code> definition to pass
+its opts to <code>comment-form</code>:</p>
+
+<p><code>clojure
+(defn comment-box [app opts]
+   ...
+               (om/build comment-form app {:opts opts})))))
+</code></p>
+
+<p>Our <code>onSubmit</code> handler is going to need to extract values from input nodes, clear
+the values from nodes, and POST a comment to the <code>/comments</code>
+endpoint. Let's define some helper functions to handle these tasks.</p>
+
+<p>First, getting the value of a node:</p>
+
+<p><code>clojure
+(defn- value-from-node
+  [component field]
+  (let [n (om/get-node component field)
+        v (-&gt; n .-value clojure.string/trim)]
+    (when-not (empty? v)
+      [v n])))
+</code></p>
+
+<p>The function <code>om/get-node</code> takes a component and the name of a ref and
+returns that ref. We then use the ref to extract the value and trim
+leading/trailing whitespace, just like in the original tutorial. We
+return the value <em>and</em> node, or <code>nil</code>. The reason we return the node
+is because we'll need to clear it afterwards -- let's define that
+function now. It will take a variable number of nodes and set the
+value contained within them to an empty string.</p>
+
+<p><code>clojure
+(defn- clear-nodes!
+  [&amp; nodes]
+  (doall (map #(set! (.-value %) "") nodes)))
+</code></p>
+
+<p>Next we'll define a function to save a comment to the server (we
+defined the logic to save the comments in memory in the last
+tutorial).</p>
+
+<p><code>clojure
+(defn save-comment!
+  [comment url]
+  (go (let [res (&lt;! (http/post url {:json-params comment}))]
+        (prn (get-in res [:body :message])))))
+</code></p>
+
+<p>Finally, we have the tools we need to define the handler itself:</p>
+
+<p><code>clojure
+(defn handle-submit
+  [e owner opts]
+  (let [[author author-node] (value-from-node owner "author")
+        [text text-node]     (value-from-node owner "text")]
+    (when (and author text)
+      (save-comment! {:author author :text text} (:url opts))
+      (clear-nodes! author-node text-node))
+    false))
+</code></p>
+
+<p>First we use <code>value-from-node</code> to extract the values in the input
+nodes. When there's a value in <em>both</em> of these fields, we call
+<code>save-comment!</code> to persist the comment, and then call <code>clear-nodes!</code>
+on the nodes returned from <code>value-from-node</code>.</p>
+
+<p>Our component is now fairly feature-complete. We can read a list of
+comments from a server, save new comments, have that list update when
+comments from other clients are saved, and there's even some
+rudimentary validation.</p>
+
+<h2><a href="http://facebook.github.io/react/docs/tutorial.html#optimization-optimistic-updates">Optimization: optimistic updates</a> (tutorial 20)</h2>
+
+<p>A simple way to make the component better would be to update the
+comment list upon entry of a new comment <em>immediately</em>, rather than
+waiting for our polling to pick it up.</p>
+
+<p>Instead of just sending the comment off to the server, we can also
+update our cursor with a call to <code>om/transact!</code> (which triggers a
+component render).</p>
+
+<p><code>clojure
+(defn handle-submit
+  [e owner app opts]
+  (let [[author author-node] (value-from-node owner "author")
+        [text text-node]     (value-from-node owner "text")]
+    (when (and author text)
+      (let [comment {:author author :text text}]
+        (save-comment! comment (:url opts))
+        (om/transact! app [:comments]
+                    (fn [comments] (conj comments (assoc comment :id (guid))))))
+      (clear-nodes! author-node text-node))
+    false))
+</code></p>
+
+<p>We modify <code>handle-submit</code> to take the cursor as an argument, and
+include a call to <code>om/transact!</code> to add our comment to the existing
+comments. That concludes the full React tutorial!</p>
+
+<h2>What now?</h2>
+
+<p>There are quite a few things that could be improved about this
+component that I've been thinking about, and I will probably try to
+implement some of my ideas at one point. Until I get around to doing
+these myself in tutorial form, here are some ideas that can be used as
+exercises/practice problems for the reader:</p>
+
+<ol>
+<li>So far we've got <em>Create</em> and <em>Read</em> of CRUD. How about the <em>D</em> and
+<em>U</em>?
+<ul>
+<li>Only the author (let's not bother with admins) should be able to
+update and delete his or her own comments. How about some kind of
+basic system for entering your name at the start of the
+application, and then restricting update/delete to the comments
+where the name matches?</li>
+</ul></li>
+<li>Comments are generally not a standalone piece of an application --
+they accompany some other piece of content. How would you attach
+a CommentBox to another component containing subject matter?
+<ul>
+<li>It's often nice to be able to show and hide the list of
+comments. How would you make the CommentBox showable/hideable?
+What would be a good way to make <em>anything</em> showable/hideable in
+Om?</li>
+</ul></li>
+<li>Not all comments are equal. Some are more interesting than others
+-- which is why sites like Hacker News &amp; Reddit have up/downvoting
+capabilities. What would be a good way to add up/downvoting to our
+Comments?
+<ul>
+<li>A person should only be able to upvote or downvote something; not
+both simultaneously.</li>
+<li>The aggregate amount of up/downvotes should be displayed
+somewhere (duh).</li>
+<li>Make sure that one user can't do more than one up/downvote.</li>
+<li>Should total score of a comment be factor into the sorting order
+of the comments? What about arbitrarily changing the sorting
+order of the comments?</li>
+</ul></li>
+<li>While we're on the subject of HN/Reddit, how about <strong>replies</strong> to
+comments?</li>
+<li>Hell, why not just make a Hacker News clone!</li>
+</ol>

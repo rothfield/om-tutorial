@@ -1,0 +1,24 @@
+<h1><a href="http://facebook.github.io/react/docs/tutorial.html#adding-markdown">Adding Markdown</a> (tutorials 6-7)</h1>
+
+<p>Rather than using Showdown as used in the React tutorial, we'll use a
+CLJS library -- that'll keep things more idiomatic.</p>
+
+<p>The library we'll use is
+<a href="https://github.com/yogthos/markdown-clj">markdown-clj</a>. Add
+<code>[markdown-clj "0.9.38"]</code> to your <code>project.clj</code>, and
+<code>[markdown.core :as md]</code> to the <code>:require</code> block of the <code>core.cljs</code>
+namespace.</p>
+
+<p><code>clojure
+(defn comment [app owner {:keys [author text] :as opts}]
+  (om/component
+   (let [raw-markup (md/mdToHtml text)]
+     (dom/div #js {:className "comment"}
+              (dom/h2 #js {:className "commentAuthor"} author)
+              (dom/span #js {:dangerouslySetInnerHTML #js {:__html raw-markup}})))))
+</code></p>
+
+<p>The relevant pieces here are almost a straight translation from the
+original React code. We use <code>(dom/span #js {:dangerouslySetInnerHTML #js {:__html raw-markup}})</code> to render the comments as markdown.</p>
+
+<p>Since dependencies have changed, make sure to restart <code>lein dev</code>.</p>

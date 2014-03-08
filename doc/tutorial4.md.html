@@ -1,0 +1,43 @@
+<h1><a href="http://facebook.github.io/react/docs/tutorial.html#component-properties">Component Properties</a> (tutorials 4-5)</h1>
+
+<p>In Om, we have two facilities for passing data into our components:</p>
+
+<ol>
+<li>Passing data in options directly to a component,</li>
+<li>accessing application state.</li>
+</ol>
+
+<p>In this case, the first option is probably the closest to the React
+version.</p>
+
+<p>Let's start by rendering two <code>comment</code> components (we'll define the
+component itself afterwards) and define the <code>author</code> and <code>text</code>
+properties as options.</p>
+
+<p><code>clojure
+(defn comment-list [app]
+  (om/component
+   (dom/div #js {:className "commentList"}
+            (om/build comment app {:opts {:author "Pete Hunt"
+                                          :text "This is one comment"}})
+            (om/build comment app {:opts {:author "Jordan Walke"
+                                          :text "This is *another* comment"}}))))
+</code></p>
+
+<h2><a href="http://facebook.github.io/react/docs/tutorial.html#using-props">Using Props</a></h2>
+
+<p>Let's define our <code>comment</code> component. Now, instead of just taking
+<code>app</code> (the cursor) as an argument, we'll also take <code>opts</code> (and
+destructure them).</p>
+
+<p><code>clojure
+(defn comment [app owner {:keys [author text] :as opts}]
+  (om/component
+   (dom/div #js {:className "comment"}
+            (dom/h2 #js {:className "commentAuthor"} author)
+            text)))
+</code></p>
+
+<p><code>opts</code> is one key of several that can be passed as the last argument
+to <code>om/build</code>. We'll explore more of these later. Note, we have to
+include the <code>owner</code> argument as the second argument.</p>

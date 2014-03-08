@@ -1,0 +1,29 @@
+<h1><a href="http://facebook.github.io/react/docs/tutorial.html#composing-components">Composing Components</a> (tutorial 2-3)</h1>
+
+<p>Let's create scaffold two more components using the <code>om/component</code>
+convenience macro:</p>
+
+<p>```clojure
+(defn comment-list [app]
+  (om/component
+   (dom/div #js {:className "commentList"}
+            "Hello, world! I am a CommentList.")))</p>
+
+<p>(defn comment-form [app]
+  (om/component
+   (dom/div #js {:className "commentForm"}
+            "Hello, world! I am a CommentForm.")))
+```</p>
+
+<p>and add them to our <code>comment-box</code> component.</p>
+
+<p><code>clojure
+(defn comment-box [app]
+  (om/component
+   (dom/div #js {:className "commentBox"}
+            (dom/h1 nil "Comments")
+            (om/build comment-list app)
+            (om/build comment-form app))))
+</code></p>
+
+<p>Nothing new here.</p>

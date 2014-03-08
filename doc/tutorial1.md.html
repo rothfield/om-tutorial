@@ -1,0 +1,167 @@
+<h1><a href="http://facebook.github.io/react/docs/tutorial.html#your-first-component">Your first component</a></h1>
+
+<h2>Getting familiar</h2>
+
+<p>The bulk of the ClojureScript (CLJS) code that you'll be writing will
+live in <code>src/cljs/core.cljs</code>. The server-side code is in
+<code>src/clj/</code>. We won't be covering any server-side stuff in these
+tutorials, but the code will update in this repo when necessary, so
+feel free to check it out.</p>
+
+<p><strong>Note:</strong> This is not a Clojure/Script tutorial -- I'll assume that
+you are already moderately familiar with CLJ/S. If not, I would
+recommend becoming familiar with them beforehand.</p>
+
+<p>At this point core.cljs should look something like this:</p>
+
+<p>```clojure
+(enable-console-print!)</p>
+
+<p>(def app-state
+  (atom {:things []}))</p>
+
+<p>(defn omtut-starter-app [app owner]
+  (reify
+    om/IRender
+    (render [_]
+      (dom/div nil
+               (dom/h1 nil "omtut-starter is working!")))))</p>
+
+<p>(om/root app-state omtut-starter-app (.getElementById js/document "content"))
+```</p>
+
+<p>The first line allows us to write code like <code>(prn &lt;cljs-data-here&gt;)</code>
+and see something useful in the console -- much better than <code>(.log
+js/console &lt;stuff&gt;)</code> both in terms of code legibility and quality of
+output. If you don't believe me, try the following and compare the results:</p>
+
+<p><code>clojure
+(prn {:a 1 :b ["s" {:c 2}]})
+(.log js/console {:a 1 :b ["s" {:c 2}]})
+</code></p>
+
+<p>The next block is a an atom that will hold your application's mutable
+state, which will be passed throughout the application.</p>
+
+<p>The third block of code is the top-level component definition, or
+"app" definition.</p>
+
+<p>The final block of code defines the entry point of sorts for the
+application.</p>
+
+<h2>What's going on?</h2>
+
+<p>Let's start with the entry point for the application -- <code>om/root</code>.</p>
+
+<p><code>om/root</code> is a function that takes "an immutable value or value
+wrapped in an atom [if it's not an atom, Om will make it one], an
+initial function f, and a DOM target."</p>
+
+<p><code>clojure
+(om/root
+  app-state
+  omtut-starter-app
+  (.getElementById js/document "content"))
+</code></p>
+
+<p>is kind of like</p>
+
+<p><code>javascript
+React.renderComponent(
+  OmtutStarterApp(appState),
+  document.getElementById('content')
+);
+</code></p>
+
+<p>in React.</p>
+
+<p>The data passed as a first argument will be annotated with information
+that tells Om internally which bits are state and how to look them up
+("state and path respectively").</p>
+
+<p>That data is fed to the "function f", which must be a component that
+implements <code>IRender</code> (more on that momentarily).</p>
+
+<p>Finally, the last argument tells Om where to install the React render
+loop (watch for updates, perform updates, repeat).</p>
+
+<p>As mentioned in the React tutorial
+<a href="http://facebook.github.io/react/docs/tutorial.html#whats-going-on">here</a>,
+React defines a number of methods available to components which are
+implemented as protocols in Om.</p>
+
+<p><code>clojure
+(defn omtut-starter-app [app owner]
+  (reify
+    om/IRender
+    (render [_]
+    ...)))
+</code></p>
+
+<p>is something like</p>
+
+<p><code>javascript
+var OmtutStarterApp = React.createClass({
+  render: function() {
+   return (
+     ...
+   );
+  }
+});
+</code></p>
+
+<p>in React.</p>
+
+<p>We frequently only need to implement the <code>render</code> method of a
+component, so Om has a convenience macro for that. The definition
+of <code>omtut-starter-app</code> could be rewritten as:</p>
+
+<p><code>clojure
+(defn omtut-starter-app [app owner]
+  (om/component
+    (dom/div nil
+        (dom/h1 nil "omtut-starter is working!"))))
+</code></p>
+
+<p>Feel free to use either form for now, although we'll eventually need
+the expanded definition.</p>
+
+<h2>Tutorial 1</h2>
+
+<p>We need to define a <code>CommentBox</code> component. Let's use the shortened
+form of an Om component shown above to do so now.</p>
+
+<p><code>clojure
+(defn comment-box [app]
+  (om/component
+   (dom/div #js {:className "commentBox"}
+            "Hello, world! I am a CommentBox."))))
+</code></p>
+
+<p>Just as React defines JSX for working with HTML-looking elements in JS
+-- Om defines a set of macros in the <code>dom</code> namespace that allow us to
+build React dom components (<strong>aside:</strong> the project
+<a href="https://github.com/r0man/sablono">sablono</a> by
+<a href="https://github.com/r0man">r0man</a> provides a way of expressing these
+elements in <a href="https://github.com/weavejester/hiccup">hiccup</a>-style
+syntax -- super cool). We define components in s-expressions, passing
+attributes as a map of <code>{:attribute "value"}</code> and defining children as
+the last argument(s). The <code>#js</code> is just shorthand for expressing js
+objects/arrays (thanks <a href="https://github.com/swannodette">swannodette</a>
+for the clarification on that).</p>
+
+<p>Finally, modify the app definition to render this new component:</p>
+
+<p><code>clojure
+(defn omtut-starter-app [app]
+  (reify
+    om/IRender
+    (render [_]
+      (dom/div nil
+               (om/build comment-box app)))))
+</code></p>
+
+<p>We replace the <code>h1</code> component with our custom one by "building" it: a
+call to <code>om/build</code> with the component and application state (cursor)
+as arguments does the trick. Refresh your page (assuming <code>lein dev</code> is
+running) to see it in action!</p>

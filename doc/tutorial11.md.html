@@ -1,0 +1,204 @@
+<h1><a href="http://facebook.github.io/react/docs/tutorial.html#fetching-from-the-server">Fetching from the server</a> (tutorials 11-14)</h1>
+
+<p>Up to this point, the comments in our list have been hard-coded into
+our components. This would all be well and good if data magically
+appeared in our programs when and where we wanted it to --
+unfortunately neither computer programs or data possess magical
+powers.</p>
+
+<p>What we need now is to fetch data from a server. We'll start by
+pulling the comments out of our application code and defining them in
+a JSON file at the root of our project.</p>
+
+<p><code>json
+[
+    {"author": "Pete Hunt", "text": "This is one comment"},
+    {"author": "Jordan Walke", "text": "This is *another* comment"}
+]
+</code></p>
+
+<p>We'll change our <code>app-state</code> var to be an empty map (within an atom,
+that is) as well.</p>
+
+<p><code>clojure
+(def app-state
+  (atom {}))
+</code></p>
+
+<p>When our application starts, we'll initialize our comments list to an
+empty list, as done in the React tutorial (we're following along a bit
+out of order now -- this is from tutorial14.js). We can do this using
+the <code>om/IInitState</code> protocol that corresponds to the <code>getInitialState</code>
+method in React. Update the <code>comment-box</code> definition as follows:</p>
+
+<p><code>clojure
+(defn comment-box [app]
+  (reify
+    om/IInitState
+    (init-state [_]
+      (om/transact! app [:comments] (fn [] []))
+    om/IRender
+    ...))
+</code></p>
+
+<p><a href="https://github.com/swannodette/om/blob/master/src/om/core.cljs#L428"><code>om/transact!</code></a>
+takes a cursor, a list of keys, and a function -- and applies the
+function to the data in the cursor at the path represented by the list
+of keys. Here, we're just initializing our <code>:comments</code> to an empty
+vector. <a href="https://github.com/swannodette/om/blob/master/src/om/core.cljs#L457"><code>om/update!</code></a>
+alternatively takes just a cursor and function -- we could rewrite the
+above like so:</p>
+
+<p><code>clojure
+...
+(init-state [_]
+  (om/update! app #(assoc % :comments [])))
+...
+</code></p>
+
+<h2>Define Server-side logic</h2>
+
+<p>Before we can pull comments from the server, we need to define the
+server-side logic to serve those comments. I'm not going to explain
+how this works since it's not the point of this tutorial, but here's
+the code that needs to go into <code>core.clj</code> (replace the existing stuff):</p>
+
+<p>```clojure
+(def comments (atom []))</p>
+
+<p>(defn json-response [data &amp; [status]]
+  {:status (or status 200)
+   :headers {"Content-Type" "application/json"}
+   :body (json/generate-string data)})</p>
+
+<p>(defn init
+  []
+  (reset! comments (-> (slurp "comments.json")
+                       (json/parse-string true)
+                       vec)))</p>
+
+<p>(defn save-comment!
+  [{:keys [body]}]
+  (let [comment (-> body io/reader slurp (json/parse-string true))]
+    (swap! comments conj comment)
+    (json-response
+     {:message "Saved comment!"})))</p>
+
+<p>(defroutes app-routes
+  (GET "/" [] (resp/redirect "/index.html"))</p>
+
+<p>(GET "/comments" [] (json-response
+                       {:message "Here's the comments!"
+                        :comments @comments}))
+  (POST "/comments" req (save-comment! req))</p>
+
+<p>(route/resources "/")
+  (route/not-found "Page not found"))</p>
+
+<p>(def app
+  (-> #'app-routes
+      (handler/api)))
+```</p>
+
+<p>Finally, you'll need to add the following line to your <code>project.clj</code>
+under the <code>:ring</code> key:</p>
+
+<p><code>clojure
+:init    react-tutorial-om.core/init
+</code></p>
+
+<hr />
+
+<h2>Fetching the comments</h2>
+
+<p>In the react tutorial they use the jQuery <code>$.ajax</code> function to hit the
+server -- we're going to use
+<a href="https://github.com/r0man/cljs-http">cljs-http</a>. It's a bit newer than
+some of the other CLJS ajax libraries out there, but I like it due to
+its use of <code>core.async</code>.</p>
+
+<p>The endpoint that we want to hit is at <code>/comments</code> on the
+server. Rather than hard-coding this endpoint into the functions that
+use it directly, let's assume that it will show up multiple times in
+the application and is subject to change at a later date. This is an
+ideal candidate to pass as <code>:opts</code> to the component using it. Update
+your <code>app</code> definition like so:</p>
+
+<p><code>clojure
+(defn omtut-starter-app [app owner]
+   ...
+               (om/build comment-box app
+                         {:opts {:url "/comments"}}))
+</code></p>
+
+<p>Now, let's define functions to get our comments from the server.</p>
+
+<p>```clojure
+(defn- with-id
+ [m]
+ (assoc m :id (guid)))</p>
+
+<p>(defn- fetch-comments
+  [url]
+  (let [c (chan)]
+    (go (let [{{comments :comments} :body} (<! (http/get url))]
+          (>! c (vec (map with-id comments)))))
+    c))
+```</p>
+
+<p>Given a url, <code>fetch-comments</code> issues an http GET request, extracts the
+comments from the body of the response, adds a <code>guid</code> to each comment,
+puts the result of that request on a channel, and returns the channel.</p>
+
+<p>Now we just need to wire this function up to our component to make
+sure that it gets run before the component is rendered. We'll do that
+in the within the <code>IWillMount</code> method
+(<a href="http://facebook.github.io/react/docs/component-specs.html#mounting-componentwillmount"><code>componentWillMount</code></a>
+in React), which is "invoked immediately before rendering occurs".</p>
+
+<p>In your <code>comment-box</code> definition, add the following method:</p>
+
+<p><code>clojure
+(defn comment-box [app owner opts]
+  (reify
+    om/IInitState
+    ...
+    om/IWillMount
+    (will-mount [_]
+      (go (let [comments (&lt;! (fetch-comments (:url opts)))]
+            (om/update! app #(assoc % :comments comments)))))
+    om/IRender
+    ...))
+</code></p>
+
+<p>We call <code>fetch-comments</code> with the url from <code>opts</code>, which will return a
+channel. We use an asynchronous take (<code>&lt;!</code>) to extract the comments,
+and then update our cursor with a call to <code>om/update!</code>.</p>
+
+<h2>Polling for updates</h2>
+
+<p>The last thing that we need to do is poll the server for updates --
+we'd like to see other users' comments as they're posted. First, we'll
+define an interval to poll at and pass this to the <code>comment-box</code> via
+<code>opts</code>.</p>
+
+<p>Add <code>:poll-interval 2000</code> to the <code>opts</code> map in the <code>app</code> definition to
+poll every two seconds -- then, we'll modify the <code>IWillMount</code>
+definition to loop every two seconds by using a <code>timeout</code> channel
+(make sure that <code>timeout</code> is referred from <code>clojure.core.async</code> in
+your <code>ns</code> definition).</p>
+
+<p><code>clojure
+(defn comment-box [app owner opts]
+  (reify
+    ...
+    om/IWillMount
+    (will-mount [_]
+      (go (while true
+            (let [comments (&lt;! (fetch-comments (:url opts)))]
+              (om/update! app #(assoc % :comments comments)))
+            (&lt;! (timeout (:poll-interval opts))))))
+    ...))
+</code></p>
+
+<p>And that's it!</p>
